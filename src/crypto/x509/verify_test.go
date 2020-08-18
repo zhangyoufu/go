@@ -13,12 +13,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+var supportSHA2 = !testenv.IsWindowsXP()
 
 type verifyTest struct {
 	leaf                 string
@@ -512,6 +515,9 @@ func testVerify(t *testing.T, useSystemRoots bool) {
 			continue
 		}
 		if runtime.GOOS == "windows" && test.testSystemRootsError {
+			continue
+		}
+		if useSystemRoots && !supportSHA2 && test.sha2 {
 			continue
 		}
 
