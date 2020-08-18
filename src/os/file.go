@@ -40,6 +40,7 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/testlog"
+	"internal/winver"
 	"io"
 	"runtime"
 	"syscall"
@@ -338,7 +339,7 @@ func TempDir() string {
 // https://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html if
 // non-empty, else $HOME/.cache.
 // On Darwin, it returns $HOME/Library/Caches.
-// On Windows, it returns %LocalAppData%.
+// On Windows, it returns %LocalAppData% for Windows Vista or newer, %AppData% otherwise.
 // On Plan 9, it returns $home/lib/cache.
 //
 // If the location cannot be determined (for example, $HOME is not defined),
@@ -348,9 +349,16 @@ func UserCacheDir() (string, error) {
 
 	switch runtime.GOOS {
 	case "windows":
-		dir = Getenv("LocalAppData")
-		if dir == "" {
-			return "", errors.New("%LocalAppData% is not defined")
+		if winver.VistaOrLater {
+			dir = Getenv("LocalAppData")
+			if dir == "" {
+				return "", errors.New("%LocalAppData% is not defined")
+			}
+		} else {
+			dir = Getenv("AppData")
+			if dir == "" {
+				return "", errors.New("%AppData% is not defined")
+			}
 		}
 
 	case "darwin":
