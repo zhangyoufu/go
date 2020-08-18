@@ -148,6 +148,7 @@ var pkgDeps = map[string][]string{
 	"internal/syscall/unix":             {"L0", "syscall"},
 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+	"internal/winver":                   {"syscall"},
 	"time": {
 		// "L0" without the "io" package:
 		"errors",
@@ -164,7 +165,7 @@ var pkgDeps = map[string][]string{
 
 	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
 	"internal/testlog": {"L0"},
-	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
+	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog", "internal/winver"},
 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
 	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
 	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
@@ -321,7 +322,7 @@ var pkgDeps = map[string][]string{
 		"L0", "CGO",
 		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
 		"internal/nettrace", "internal/poll", "internal/syscall/unix",
-		"internal/syscall/windows", "internal/singleflight", "internal/race",
+		"internal/syscall/windows", "internal/singleflight", "internal/race", "internal/winver",
 		"internal/x/net/dns/dnsmessage", "internal/x/net/lif", "internal/x/net/route",
 	},
 
