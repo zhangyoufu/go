@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"internal/testenv"
 	"io"
 	"io/ioutil"
 	"os"
@@ -257,6 +258,9 @@ func netshInterfaceIPShowInterface(ipver string, ifaces map[string]bool) error {
 }
 
 func TestInterfacesWithNetsh(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("Windows XP netsh command does not provide required functionality")
+	}
 	if !netshSpeaksEnglish(t) {
 		t.Skip("English version of netsh required for this test")
 	}
@@ -428,6 +432,9 @@ func netshInterfaceIPv6ShowAddress(name string, netshOutput []byte) []string {
 }
 
 func TestInterfaceAddrsWithNetsh(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("Windows XP netsh command does not provide required functionality")
+	}
 	if !netshSpeaksEnglish(t) {
 		t.Skip("English version of netsh required for this test")
 	}
@@ -504,6 +511,9 @@ func checkGetmac(t *testing.T) {
 }
 
 func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("Windows XP does not have powershell command")
+	}
 	checkGetmac(t)
 
 	ift, err := Interfaces()
