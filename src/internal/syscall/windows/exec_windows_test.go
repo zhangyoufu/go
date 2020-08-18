@@ -9,6 +9,7 @@ package windows_test
 import (
 	"fmt"
 	"internal/syscall/windows"
+	"internal/testenv"
 	"os"
 	"os/exec"
 	"syscall"
@@ -17,6 +18,10 @@ import (
 )
 
 func TestRunAtLowIntegrity(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("Windows XP does not support windows integrity levels")
+	}
+
 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
 		wil, err := getProcessIntegrityLevel()
 		if err != nil {

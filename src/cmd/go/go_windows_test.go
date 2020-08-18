@@ -79,6 +79,10 @@ func runGetACL(t *testing.T, path string) string {
 // has discretionary access control list (DACL) set as if the file
 // was created in the destination directory.
 func TestACL(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("Windows XP does not have powershell command")
+	}
+
 	tmpdir, err := ioutil.TempDir("", "TestACL")
 	if err != nil {
 		t.Fatal(err)
