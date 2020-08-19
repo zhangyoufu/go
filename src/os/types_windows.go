@@ -6,6 +6,7 @@ package os
 
 import (
 	"internal/syscall/windows"
+	"internal/winver"
 	"sync"
 	"syscall"
 	"time"
@@ -49,7 +50,14 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
 	}
 
 	var ti windows.FILE_ATTRIBUTE_TAG_INFO
-	err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+	if winver.VistaOrLater {
+		err = windows.GetFileInformationByHandleEx(h, windows.FileAttributeTagInfo, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)))
+	} else {
+		var ioStatusBlock windows.IO_STATUS_BLOCK
+		if status := windows.NtQueryInformationFile(h, &ioStatusBlock, (*byte)(unsafe.Pointer(&ti)), uint32(unsafe.Sizeof(ti)), windows.FileAttributeTagInformation); status < 0 {
+			err = windows.RtlNtStatusToDosError(status)
+		}
+	}
 	if err != nil {
 		if errno, ok := err.(syscall.Errno); ok && errno == windows.ERROR_INVALID_PARAMETER {
 			// It appears calling GetFileInformationByHandleEx with

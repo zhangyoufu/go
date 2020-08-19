@@ -43,6 +43,7 @@ var (
 	modadvapi32 = syscall.NewLazyDLL(sysdll.Add("advapi32.dll"))
 	moduserenv  = syscall.NewLazyDLL(sysdll.Add("userenv.dll"))
 	modpsapi    = syscall.NewLazyDLL(sysdll.Add("psapi.dll"))
+	modntdll    = syscall.NewLazyDLL(sysdll.Add("ntdll.dll"))
 
 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
@@ -71,6 +72,8 @@ var (
 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
 	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
 	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procNtQueryInformationFile       = modntdll.NewProc("NtQueryInformationFile")
+	procRtlNtStatusToDosErrorNoTeb   = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
 )
 
 func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
@@ -390,5 +393,17 @@ func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byt
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func NtQueryInformationFile(handle syscall.Handle, ioStatusBlock *IO_STATUS_BLOCK, info *byte, length uint32, class uint32) (status NTSTATUS) {
+	r0, _, _ := syscall.Syscall6(procNtQueryInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(ioStatusBlock)), uintptr(unsafe.Pointer(info)), uintptr(length), uintptr(class), 0)
+	status = NTSTATUS(r0)
+	return
+}
+
+func RtlNtStatusToDosError(status NTSTATUS) (dosError syscall.Errno) {
+	r0, _, _ := syscall.Syscall(procRtlNtStatusToDosErrorNoTeb.Addr(), 1, uintptr(status), 0, 0)
+	dosError = syscall.Errno(r0)
 	return
 }
