@@ -171,7 +171,14 @@ func nestedCall(t *testing.T, f func()) {
 	d.Proc("EnumTimeFormatsEx").Call(c, LOCALE_NAME_USER_DEFAULT, 0, uintptr(*(*unsafe.Pointer)(unsafe.Pointer(&f))))
 }
 
+func checkEnumTimeFormatsEx(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("EnumTimeFormatsEx is not available on Windows XP")
+	}
+}
+
 func TestCallback(t *testing.T) {
+	checkEnumTimeFormatsEx(t)
 	var x = false
 	nestedCall(t, func() { x = true })
 	if !x {
@@ -180,10 +187,12 @@ func TestCallback(t *testing.T) {
 }
 
 func TestCallbackGC(t *testing.T) {
+	checkEnumTimeFormatsEx(t)
 	nestedCall(t, runtime.GC)
 }
 
 func TestCallbackPanicLocked(t *testing.T) {
+	checkEnumTimeFormatsEx(t)
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 
@@ -207,6 +216,7 @@ func TestCallbackPanicLocked(t *testing.T) {
 }
 
 func TestCallbackPanic(t *testing.T) {
+	checkEnumTimeFormatsEx(t)
 	// Make sure panic during callback unwinds properly.
 	if runtime.LockedOSThread() {
 		t.Fatal("locked OS thread on entry to TestCallbackPanic")
@@ -235,6 +245,7 @@ func TestCallbackPanicLoop(t *testing.T) {
 }
 
 func TestBlockingCallback(t *testing.T) {
+	checkEnumTimeFormatsEx(t)
 	c := make(chan int)
 	go func() {
 		for i := 0; i < 10; i++ {
