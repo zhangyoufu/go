@@ -183,6 +183,7 @@ var verifyTests = []verifyTest{
 		intermediates: []string{smimeIntermediate},
 		roots:         []string{smimeRoot},
 		currentTime:   1594673418,
+		sha2:          true,
 
 		errorCallback: expectUsageError,
 	},
@@ -193,6 +194,7 @@ var verifyTests = []verifyTest{
 		roots:         []string{smimeRoot},
 		currentTime:   1594673418,
 		keyUsages:     []ExtKeyUsage{ExtKeyUsageServerAuth},
+		sha2:          true,
 
 		errorCallback: expectUsageError,
 	},
@@ -203,6 +205,7 @@ var verifyTests = []verifyTest{
 		roots:         []string{smimeRoot},
 		currentTime:   1594673418,
 		keyUsages:     []ExtKeyUsage{ExtKeyUsageEmailProtection},
+		sha2:          true,
 
 		expectedChains: [][]string{
 			{"CORPORATIVO FICTICIO ACTIVO", "EAEko Herri Administrazioen CA - CA AAPP Vascas (2)", "IZENPE S.A."},
