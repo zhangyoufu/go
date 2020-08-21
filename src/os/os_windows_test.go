@@ -1089,6 +1089,8 @@ func mklinkd(t *testing.T, link, target string) {
 }
 
 func TestWindowsReadlink(t *testing.T) {
+	testenv.MustHaveSymlink(t)
+
 	tmpdir, err := ioutil.TempDir("", "TestWindowsReadlink")
 	if err != nil {
 		t.Fatal(err)
