@@ -1070,6 +1070,9 @@ func TestContext(t *testing.T) {
 }
 
 func TestContextCancel(t *testing.T) {
+	if testenv.IsWindowsXP() {
+		t.Skip("known to fail on Windows XP. Issue 17245")
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	c := helperCommandContext(t, ctx, "cat")
