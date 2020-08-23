@@ -117,6 +117,9 @@ func fastrandn(n uint32) uint32 {
 	return uint32(uint64(fastrand()) * uint64(n) >> 32)
 }
 
+//go:linkname os_fastrand os.fastrand
+func os_fastrand() uint32 { return fastrand() }
+
 //go:linkname sync_fastrand sync.fastrand
 func sync_fastrand() uint32 { return fastrand() }
 
