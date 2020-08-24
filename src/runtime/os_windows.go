@@ -25,6 +25,7 @@ const (
 //go:cgo_import_dynamic runtime._FreeEnvironmentStringsW FreeEnvironmentStringsW%1 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetConsoleMode GetConsoleMode%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetEnvironmentStringsW GetEnvironmentStringsW%0 "kernel32.dll"
+//go:cgo_import_dynamic runtime._GetOverlappedResult GetOverlappedResult%4 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcAddress GetProcAddress%2 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetProcessAffinityMask GetProcessAffinityMask%3 "kernel32.dll"
 //go:cgo_import_dynamic runtime._GetQueuedCompletionStatus GetQueuedCompletionStatus%5 "kernel32.dll"
@@ -70,6 +71,7 @@ var (
 	_FreeEnvironmentStringsW,
 	_GetConsoleMode,
 	_GetEnvironmentStringsW,
+	_GetOverlappedResult,
 	_GetProcAddress,
 	_GetProcessAffinityMask,
 	_GetQueuedCompletionStatus,
