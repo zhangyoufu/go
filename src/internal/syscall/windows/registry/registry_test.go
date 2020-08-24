@@ -9,6 +9,7 @@ package registry_test
 import (
 	"bytes"
 	"crypto/rand"
+	"internal/testenv"
 	"os"
 	"syscall"
 	"testing"
@@ -599,6 +600,9 @@ func TestInvalidValues(t *testing.T) {
 }
 
 func TestGetMUIStringValue(t *testing.T) {
+	if testenv.IsWindowsVista() {
+		t.Skip("dtzi.DaylightName is buggy on NT 6.0")
+	}
 	if err := registry.LoadRegLoadMUIString(); err != nil {
 		t.Skip("regLoadMUIString not supported; skipping")
 	}
