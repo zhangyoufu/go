@@ -129,8 +129,14 @@ func netpoll(delay int64) gList {
 			if op != nil {
 				errno = 0
 				qty = 0
-				if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
-					errno = int32(getlasterror())
+				if !op.pd.isFile {
+					if stdcall5(_WSAGetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0, uintptr(unsafe.Pointer(&flags))) == 0 {
+						errno = int32(getlasterror())
+					}
+				} else {
+					if stdcall4(_GetOverlappedResult, op.pd.fd, uintptr(unsafe.Pointer(op)), uintptr(unsafe.Pointer(&qty)), 0) == 0 {
+						errno = int32(getlasterror())
+					}
 				}
 				handlecompletion(&toRun, op, errno, qty)
 			} else {

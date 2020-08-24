@@ -78,6 +78,7 @@ type pollDesc struct {
 	// that will blow up when GC starts moving objects.
 	lock    mutex // protects the following fields
 	fd      uintptr
+	isFile  bool
 	closing bool
 	everr   bool    // marks event scanning error happened
 	user    uint32  // user settable cookie
@@ -139,7 +140,7 @@ func poll_runtime_isPollServerDescriptor(fd uintptr) bool {
 }
 
 //go:linkname poll_runtime_pollOpen internal/poll.runtime_pollOpen
-func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
+func poll_runtime_pollOpen(fd uintptr, isFile bool) (*pollDesc, int) {
 	pd := pollcache.alloc()
 	lock(&pd.lock)
 	if pd.wg != 0 && pd.wg != pdReady {
@@ -149,6 +150,7 @@ func poll_runtime_pollOpen(fd uintptr) (*pollDesc, int) {
 		throw("runtime: blocked read on free polldesc")
 	}
 	pd.fd = fd
+	pd.isFile = isFile
 	pd.closing = false
 	pd.everr = false
 	pd.rseq++
