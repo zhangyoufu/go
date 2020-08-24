@@ -163,7 +163,11 @@ func testWriteToConn(t *testing.T, raddr string) {
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, nil)
 	if err != nil {
-		t.Fatal(err)
+		if runtime.GOOS == "windows" && testenv.IsWindowsXP() {
+			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+		} else {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -201,7 +205,11 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
 	}
 	_, _, err = c.(*UDPConn).WriteMsgUDP(b, nil, ra)
 	if err != nil {
-		t.Fatal(err)
+		if runtime.GOOS == "windows" && testenv.IsWindowsXP() {
+			t.Log("skipping broken test on Windows XP (see golang.org/issue/23072)")
+		} else {
+			t.Fatal(err)
+		}
 	}
 }
 
