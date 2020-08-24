@@ -13,12 +13,15 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"internal/testenv"
 	"math/big"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+var supportSHA2 = !testenv.IsWindowsXP()
 
 type verifyTest struct {
 	name          string
@@ -30,6 +33,7 @@ type verifyTest struct {
 	systemSkip    bool
 	systemLax     bool
 	keyUsages     []ExtKeyUsage
+	sha2          bool
 	ignoreCN      bool
 
 	errorCallback  func(*testing.T, error)
@@ -249,6 +253,7 @@ var verifyTests = []verifyTest{
 		// CryptoAPI can find alternative validation paths.
 		systemLax: true,
 
+		sha2: true,
 		expectedChains: [][]string{
 			{
 				"api.moip.com.br",
@@ -601,6 +606,9 @@ func TestSystemVerify(t *testing.T) {
 	for _, test := range verifyTests {
 		t.Run(test.name, func(t *testing.T) {
 			if test.systemSkip {
+				t.SkipNow()
+			}
+			if !supportSHA2 && test.sha2 {
 				t.SkipNow()
 			}
 			testVerify(t, test, true)
