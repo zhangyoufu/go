@@ -535,13 +535,15 @@ func TestBuildingWindowsGUI(t *testing.T) {
 
 func TestImportTableInUnknownSection(t *testing.T) {
 	if runtime.GOOS != "windows" {
-		t.Skip("skipping windows only test")
+		t.Skip("skipping Windows-only test")
 	}
 
-	// first we need to find this font driver
-	path, err := exec.LookPath("atmfd.dll")
+	// ws2_32.dll import table is located in ".rdata" section,
+	// so it is good enough to test issue #16103.
+	const filename = "ws2_32.dll"
+	path, err := exec.LookPath(filename)
 	if err != nil {
-		t.Fatalf("unable to locate required file %q in search path: %s", "atmfd.dll", err)
+		t.Fatalf("unable to locate required file %q in search path: %s", filename, err)
 	}
 
 	f, err := Open(path)
