@@ -105,7 +105,7 @@ var depsRules = `
 	RUNTIME, unicode/utf8, unicode/utf16, io
 	< internal/syscall/windows/sysdll, syscall/js
 	< syscall
-	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry
+	< internal/syscall/unix, internal/syscall/windows, internal/syscall/windows/registry, internal/winver
 	< internal/syscall/execenv
 	< SYSCALL;
 
@@ -146,7 +146,8 @@ var depsRules = `
 	# OS includes string routines, but those must be layered above package os.
 	# OS does not include reflection.
 	TIME, io, sort
-	< internal/testlog
+	< internal/testlog;
+	internal/testlog, internal/winver
 	< internal/poll
 	< os
 	< os/signal;
@@ -327,6 +328,7 @@ var depsRules = `
 	internal/poll,
 	internal/singleflight,
 	internal/race,
+	internal/winver,
 	math/rand,
 	os
 	< net;
