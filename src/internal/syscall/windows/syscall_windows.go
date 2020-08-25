@@ -36,12 +36,14 @@ func UTF16PtrToString(p *uint16) string {
 }
 
 const (
+	ERROR_ACCESS_DENIED          syscall.Errno = 5
 	ERROR_SHARING_VIOLATION      syscall.Errno = 32
 	ERROR_LOCK_VIOLATION         syscall.Errno = 33
 	ERROR_NOT_SUPPORTED          syscall.Errno = 50
 	ERROR_CALL_NOT_IMPLEMENTED   syscall.Errno = 120
 	ERROR_INVALID_NAME           syscall.Errno = 123
 	ERROR_LOCK_FAILED            syscall.Errno = 167
+	ERROR_PIPE_BUSY              syscall.Errno = 231
 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
 )
 

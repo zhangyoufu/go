@@ -8,6 +8,7 @@ import (
 	"errors"
 	"internal/race"
 	"internal/syscall/windows"
+	"internal/winver"
 	"io"
 	"runtime"
 	"sync"
@@ -192,7 +193,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		return 0, errors.New("internal error: polling on unsupported descriptor type")
 	}
 
-	if !canCancelIO {
+	if !o.fd.canCancelIO {
 		onceStartServer.Do(startServer)
 	}
 
@@ -203,7 +204,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		return 0, err
 	}
 	// Start IO.
-	if canCancelIO {
+	if o.fd.canCancelIO {
 		err = submit(o)
 	} else {
 		// Send request to a special dedicated thread,
@@ -248,7 +249,7 @@ func (s *ioSrv) ExecIO(o *operation, submit func(o *operation) error) (int, erro
 		panic("unexpected runtime.netpoll error: " + netpollErr.Error())
 	}
 	// Cancel our request.
-	if canCancelIO {
+	if o.fd.canCancelIO {
 		err := syscall.CancelIoEx(fd.Sysfd, &o.o)
 		// Assuming ERROR_NOT_FOUND is returned, if IO is completed.
 		if err != nil && err != syscall.ERROR_NOT_FOUND {
@@ -333,6 +334,12 @@ type FD struct {
 
 	// The kind of this file.
 	kind fileKind
+
+	// Determines if CancelIoEx API is present and reliable. (for pipe on NT 6.0)
+	canCancelIO bool
+
+	// Delayed pollDesc init, until any I/O operation occurred. (for pipe on NT 5.x/6.0)
+	pdInitOnce sync.Once
 }
 
 // fileKind describes the kind of file.
@@ -359,6 +366,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 		return "", initErr
 	}
 
+	fd.canCancelIO = canCancelIO
 	switch net {
 	case "file":
 		fd.kind = kindFile
@@ -368,6 +376,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 		fd.kind = kindDir
 	case "pipe":
 		fd.kind = kindPipe
+		fd.canCancelIO = canCancelIO && winver.Win7OrLater
 	case "tcp", "tcp4", "tcp6",
 		"udp", "udp4", "udp6",
 		"ip", "ip4", "ip6",
@@ -430,7 +439,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
 	fd.wop.fd = fd
 	fd.rop.runtimeCtx = fd.pd.runtimeCtx
 	fd.wop.runtimeCtx = fd.pd.runtimeCtx
-	if !canCancelIO {
+	if !fd.canCancelIO {
 		fd.rop.errc = make(chan error)
 		fd.wop.errc = make(chan error)
 	}
@@ -466,7 +475,12 @@ func (fd *FD) Close() error {
 		return errClosing(fd.isFile)
 	}
 	if fd.kind == kindPipe {
-		syscall.CancelIoEx(fd.Sysfd, nil)
+		if fd.canCancelIO {
+			syscall.CancelIoEx(fd.Sysfd, nil)
+		} else {
+			// avoid race on fd.pd.runtimeCtx between fd.pd.evict() & fd.pdInitOnce()
+			fd.pdInitOnce.Do(func(){})
+		}
 	}
 	// unblock pending reader and writer
 	fd.pd.evict()
@@ -477,6 +491,24 @@ func (fd *FD) Close() error {
 	return err
 }
 
+func (fd *FD) pdInit() {
+	// check whether pipe handle is opened with FILE_FLAG_OVERLAPPED
+	var ioStatusBlock windows.IO_STATUS_BLOCK
+	var mode uint32
+	ntStatus := windows.NtQueryInformationFile(fd.Sysfd, &ioStatusBlock, (*byte)(unsafe.Pointer(&mode)), uint32(unsafe.Sizeof(mode)), windows.FileModeInformation)
+	if ntStatus < 0 || mode&windows.FILE_SYNCHRONOUS_IO_NONALERT != 0 {
+		// query failed or does not support overlapped I/O
+		return
+	}
+
+	// put pipe handle into netpoll (might fail)
+	_ = fd.pd.init(fd)
+
+	// propagate runtimeCtx
+	fd.rop.runtimeCtx = fd.pd.runtimeCtx
+	fd.wop.runtimeCtx = fd.pd.runtimeCtx
+}
+
 // Windows ReadFile and WSARecv use DWORD (uint32) parameter to pass buffer length.
 // This prevents us reading blocks larger than 4GB.
 // See golang.org/issue/26923.
@@ -484,6 +516,9 @@ const maxRW = 1 << 30 // 1GB is large enough and keeps subsequent reads aligned
 
 // Read implements io.Reader.
 func (fd *FD) Read(buf []byte) (int, error) {
+	if fd.kind == kindPipe && !fd.canCancelIO {
+		fd.pdInitOnce.Do(fd.pdInit)
+	}
 	if err := fd.readLock(); err != nil {
 		return 0, err
 	}
@@ -501,14 +536,32 @@ func (fd *FD) Read(buf []byte) (int, error) {
 		switch fd.kind {
 		case kindConsole:
 			n, err = fd.readConsole(buf)
+		case kindPipe:
+			if fd.canCancelIO || fd.pd.runtimeCtx == 0 {
+				n, err = syscall.Read(fd.Sysfd, buf)
+				if err == syscall.ERROR_OPERATION_ABORTED {
+					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+					// If the fd is a pipe and the Read was interrupted by CancelIoEx,
+					// we assume it is interrupted by Close.
+					err = ErrFileClosing
+				}
+			} else {
+				o := &fd.rop
+				n, err = rsrv.ExecIO(o, func(o *operation) error {
+					return syscall.ReadFile(o.fd.Sysfd, buf, &o.qty, &o.o)
+				})
+				if race.Enabled {
+					race.Acquire(unsafe.Pointer(&ioSync))
+				}
+				switch err {
+				case syscall.ERROR_OPERATION_ABORTED:
+					err = ErrFileClosing
+				case syscall.ERROR_BROKEN_PIPE:
+					err = nil
+				}
+			}
 		default:
 			n, err = syscall.Read(fd.Sysfd, buf)
-			if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
-				// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-				// If the fd is a pipe and the Read was interrupted by CancelIoEx,
-				// we assume it is interrupted by Close.
-				err = ErrFileClosing
-			}
 		}
 		if err != nil {
 			n = 0
@@ -673,6 +726,9 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
 
 // Write implements io.Writer.
 func (fd *FD) Write(buf []byte) (int, error) {
+	if fd.kind == kindPipe && !fd.canCancelIO {
+		fd.pdInitOnce.Do(fd.pdInit)
+	}
 	if err := fd.writeLock(); err != nil {
 		return 0, err
 	}
@@ -694,14 +750,29 @@ func (fd *FD) Write(buf []byte) (int, error) {
 			switch fd.kind {
 			case kindConsole:
 				n, err = fd.writeConsole(b)
+			case kindPipe:
+				if fd.canCancelIO || fd.pd.runtimeCtx == 0 {
+					n, err = syscall.Write(fd.Sysfd, b)
+					if err == syscall.ERROR_OPERATION_ABORTED {
+						// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
+						// If the fd is a pipe and the Write was interrupted by CancelIoEx,
+						// we assume it is interrupted by Close.
+						err = ErrFileClosing
+					}
+				} else {
+					if race.Enabled {
+						race.ReleaseMerge(unsafe.Pointer(&ioSync))
+					}
+					o := &fd.wop
+					n, err = wsrv.ExecIO(o, func(o *operation) error {
+						return syscall.WriteFile(o.fd.Sysfd, b, &o.qty, &o.o)
+					})
+					if err == syscall.ERROR_OPERATION_ABORTED {
+						err = ErrFileClosing
+					}
+				}
 			default:
 				n, err = syscall.Write(fd.Sysfd, b)
-				if fd.kind == kindPipe && err == syscall.ERROR_OPERATION_ABORTED {
-					// Close uses CancelIoEx to interrupt concurrent I/O for pipes.
-					// If the fd is a pipe and the Write was interrupted by CancelIoEx,
-					// we assume it is interrupted by Close.
-					err = ErrFileClosing
-				}
 			}
 			if err != nil {
 				n = 0

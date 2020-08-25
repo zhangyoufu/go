@@ -8,6 +8,7 @@ import (
 	"errors"
 	"internal/poll"
 	"internal/syscall/windows"
+	"internal/winver"
 	"runtime"
 	"syscall"
 	"unicode/utf16"
@@ -275,13 +276,82 @@ func rename(oldname, newname string) error {
 	return nil
 }
 
+// from runtime
+func fastrand() uint32
+
 // Pipe returns a connected pair of Files; reads from r return bytes written to w.
 // It returns the files and an error, if any.
 func Pipe() (r *File, w *File, err error) {
 	var p [2]syscall.Handle
-	e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
-	if e != nil {
-		return nil, nil, NewSyscallError("pipe", e)
+	if winver.Win7OrLater {
+		e := syscall.CreatePipe(&p[0], &p[1], nil, 0)
+		if e != nil {
+			return nil, nil, NewSyscallError("pipe", e)
+		}
+	} else {
+		var e error
+		for retry := 0; retry < 2; retry++ {
+			e = nil
+			path := `\Device\NamedPipe\go-pipe-` + uitoa(uint(fastrand()))
+			objectName := windows.UNICODE_STRING{
+				Length:        uint16(len(path) * 2),
+				MaximumLength: uint16(len(path) * 2),
+				Buffer:        syscall.StringToUTF16Ptr(path),
+			}
+			objectAttributes := windows.OBJECT_ATTRIBUTES{
+				Length:     uint32(unsafe.Sizeof(windows.OBJECT_ATTRIBUTES{})),
+				ObjectName: &objectName,
+				Attributes: windows.OBJ_CASE_INSENSITIVE,
+			}
+			var ioStatusBlock windows.IO_STATUS_BLOCK
+			const pipeBufferSize = 65536
+			var defaultTimeout int64 = -50 * 10000 // 50ms
+			status := windows.NtCreateNamedPipeFile(
+				&p[0],
+				syscall.GENERIC_READ, // openMode
+				&objectAttributes,
+				&ioStatusBlock,
+				syscall.FILE_SHARE_WRITE, // shareAccess
+				windows.FILE_CREATE,      // createDisposition
+				0,                        // createOptions
+				0,                        // writeModeMessage
+				0,                        // readModeMessage
+				0,                        // nonBlocking
+				1,                        // maxInstances
+				pipeBufferSize,           // inBufferSize
+				0,                        // outBufferSize
+				&defaultTimeout,
+			)
+			if status < 0 {
+				e = windows.RtlNtStatusToDosError(status)
+				if e == windows.ERROR_ACCESS_DENIED || e == windows.ERROR_PIPE_BUSY {
+					// name conflict
+					continue
+				}
+				break
+			}
+			status = windows.NtOpenFile(
+				&p[1],
+				syscall.GENERIC_WRITE, // openMode
+				&objectAttributes,
+				&ioStatusBlock,
+				0, // shareAccess
+				0, // openOptions
+			)
+			if status < 0 {
+				_ = syscall.CloseHandle(p[0])
+				e = windows.RtlNtStatusToDosError(status)
+				if e == windows.ERROR_PIPE_BUSY {
+					// server end connected by 3rd party
+					continue
+				}
+				break
+			}
+			break
+		}
+		if e != nil {
+			return nil, nil, NewSyscallError("pipe", e)
+		}
 	}
 	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
 }
