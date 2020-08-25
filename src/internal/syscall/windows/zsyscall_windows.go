@@ -72,6 +72,8 @@ var (
 	procNetUserGetLocalGroups        = modnetapi32.NewProc("NetUserGetLocalGroups")
 	procGetProcessMemoryInfo         = modpsapi.NewProc("GetProcessMemoryInfo")
 	procGetFileInformationByHandleEx = modkernel32.NewProc("GetFileInformationByHandleEx")
+	procNtCreateNamedPipeFile        = modntdll.NewProc("NtCreateNamedPipeFile")
+	procNtOpenFile                   = modntdll.NewProc("NtOpenFile")
 	procNtQueryInformationFile       = modntdll.NewProc("NtQueryInformationFile")
 	procRtlNtStatusToDosErrorNoTeb   = modntdll.NewProc("RtlNtStatusToDosErrorNoTeb")
 )
@@ -393,6 +395,18 @@ func GetFileInformationByHandleEx(handle syscall.Handle, class uint32, info *byt
 			err = syscall.EINVAL
 		}
 	}
+	return
+}
+
+func NtCreateNamedPipeFile(handle *syscall.Handle, desiredAccess uint32, objectAttributes *OBJECT_ATTRIBUTES, ioStatusBlock *IO_STATUS_BLOCK, shareAccess uint32, createDisposition uint32, createOptions uint32, writeModeMessage uint32, readModeMessage uint32, nonBlocking uint32, maxInstances uint32, inBufferSize uint32, outBufferSize uint32, defaultTimeout *int64) (status NTSTATUS) {
+	r0, _, _ := syscall.Syscall15(procNtCreateNamedPipeFile.Addr(), 14, uintptr(unsafe.Pointer(handle)), uintptr(desiredAccess), uintptr(unsafe.Pointer(objectAttributes)), uintptr(unsafe.Pointer(ioStatusBlock)), uintptr(shareAccess), uintptr(createDisposition), uintptr(createOptions), uintptr(writeModeMessage), uintptr(readModeMessage), uintptr(nonBlocking), uintptr(maxInstances), uintptr(inBufferSize), uintptr(outBufferSize), uintptr(unsafe.Pointer(defaultTimeout)), 0)
+	status = NTSTATUS(r0)
+	return
+}
+
+func NtOpenFile(handle *syscall.Handle, desiredAccess uint32, objectAttributes *OBJECT_ATTRIBUTES, ioStatusBlock *IO_STATUS_BLOCK, shareAccess uint32, openOptions uint32) (status NTSTATUS) {
+	r0, _, _ := syscall.Syscall6(procNtOpenFile.Addr(), 6, uintptr(unsafe.Pointer(handle)), uintptr(desiredAccess), uintptr(unsafe.Pointer(objectAttributes)), uintptr(unsafe.Pointer(ioStatusBlock)), uintptr(shareAccess), uintptr(openOptions))
+	status = NTSTATUS(r0)
 	return
 }
 

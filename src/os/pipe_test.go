@@ -239,6 +239,9 @@ func TestReadNonblockingFd(t *testing.T) {
 }
 
 func TestCloseWithBlockingReadByNewFile(t *testing.T) {
+	if testenv.IsWindowsXP() || testenv.IsWindowsVista() {
+		t.Skip("syscall.Pipe() is blocking on NT 5.x/6.0")
+	}
 	var p [2]syscallDescriptor
 	err := syscall.Pipe(p[:])
 	if err != nil {
