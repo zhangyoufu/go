@@ -77,6 +77,7 @@ func doinit() {
 	X86.HasPOPCNT = isSet(ecx1, cpuid_POPCNT)
 	X86.HasAES = isSet(ecx1, cpuid_AES)
 	X86.HasOSXSAVE = isSet(ecx1, cpuid_OSXSAVE)
+	X86.HasFMA = X86.HasFMA && X86.HasOSXSAVE
 
 	osSupportsAVX := false
 	// For XGETBV, OSXSAVE bit is required and sufficient.
