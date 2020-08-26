@@ -1335,6 +1335,10 @@ func (t *tester) raceDetectorSupported() bool {
 	if !raceDetectorSupported(goos, goarch) {
 		return false
 	}
+	// The race detector was built with PSAPI_VERSION=2 and does not work on Windows Vista and earlier.
+	if goos == "windows" && !isWin7OrLater() {
+		return false
+	}
 	// The race detector doesn't work on Alpine Linux:
 	// golang.org/issue/14481
 	if isAlpineLinux() {
