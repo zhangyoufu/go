@@ -22,8 +22,8 @@ For native build on Windows, you have two choices:
 
 ### for maintained releases
 
-* [patch for Go 1.15](https://github.com/zhangyoufu/go/compare/go1.15...windows.go1.15.diff)
-* [patch for Go 1.14.7](https://github.com/zhangyoufu/go/compare/go1.14.7...windows.go1.14.diff)
+* [patch for Go 1.15.1](https://github.com/zhangyoufu/go/compare/go1.15.1...windows.go1.15.diff)
+* [patch for Go 1.14.8](https://github.com/zhangyoufu/go/compare/go1.14.8...windows.go1.14.diff)
 
 ### for archived releases
 
